@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}My Digital Tickets - EventSphere{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">My Digital Tickets</h2>
+            <p class="text-muted small mb-0">Present these unique QR codes to gate staff for entrance admission.</p>
+        </div>
+        <a href="/" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-search me-1"></i> Browse More</a>
+    </div>
+
+    {% if tickets %}
+    <div class="row g-4">
+        {% for item in tickets %}
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="ticket-pass p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge {% if item.ticket.status == 'valid' %}bg-success{% elif item.ticket.status == 'admitted' %}bg-info{% else %}bg-secondary{% endif %} rounded-pill px-3">
+                        {{ item.ticket.status.upper() }}
+                    </span>
+                    <span class="text-muted small font-monospace">{{ item.ticket.ticket_code }}</span>
+                </div>
+
+                <h5 class="fw-bold mb-1 text-truncate">{{ item.event.title }}</h5>
+                <p class="text-muted small mb-3">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ item.event.venue.name }}<br>
+                    <i class="bi bi-clock-fill text-primary me-1"></i> {{ item.event.start_time.strftime('%a, %d %b %Y &bull; %I:%M %p') }}
+                </p>
+
+                <!-- Digital QR Code Display -->
+                <div class="text-center my-3">
+                    {% if item.qr_uri and item.ticket.status == 'valid' %}
+                    <div class="qr-container shadow-sm">
+                        <img src="{{ item.qr_uri }}" alt="Ticket QR Code" style="width: 170px; height: 170px;">
+                    </div>
+                    <div class="small text-muted mt-2">Scan at entrance with phone camera</div>
+                    {% elif item.ticket.status == 'admitted' %}
+                    <div class="py-4 text-info">
+                        <i class="bi bi-patch-check-fill display-4"></i>
+                        <div class="fw-bold mt-2">Admitted</div>
+                        <div class="small text-muted">{{ item.ticket.admitted_at.strftime('%I:%M %p') if item.ticket.admitted_at else '' }}</div>
+                    </div>
+                    {% else %}
+                    <div class="py-4 text-muted">
+                        <i class="bi bi-x-circle-fill display-4 text-secondary"></i>
+                        <div class="fw-bold mt-2">Cancelled / Inactive</div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="border-top pt-3 mt-3 d-flex justify-content-between align-items-center text-muted small">
+                    <div>
+                        <strong>Tier:</strong> {{ item.booking.ticket_category.name }}<br>
+                        <strong>Ref:</strong> <span class="font-monospace">{{ item.booking.payment_reference }}</span>
+                    </div>
+                    <div>
+                        {% if item.booking.status == 'confirmed' and item.ticket.status == 'valid' %}
+                        <button onclick="cancelBooking({{ item.booking.id }})" class="btn btn-outline-danger btn-sm rounded-pill">
+                            Cancel & Refund
+                        </button>
+                        {% elif item.booking.status == 'cancelled' %}
+                        <span class="text-danger fw-semibold">Refunded ${{ "%.2f"|format(item.booking.refund_amount) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 card border-0 shadow-sm rounded-4">
+        <i class="bi bi-ticket text-muted" style="font-size: 3.5rem;"></i>
+        <h4 class="mt-3">No tickets purchased yet</h4>
+        <p class="text-muted small">Book your first event ticket or join a waitlist.</p>
+        <div>
+            <a href="/" class="btn btn-primary btn-sm rounded-pill px-4">Browse Events</a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function cancelBooking(bookingId) {
+    if (!confirm("Are you sure you want to cancel this booking?\n\nRefund Policy:\n- >48h before event: 100% refund\n- 24-48h before event: 50% refund\n- <24h before event: 0% refund")) {
+        return;
+    }
+
+    fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST"
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Cancellation failed");
+        return data;
+    })
+    .then(data => {
+        alert(`BookingAgent Processed Cancellation:\n${data.policy_reason}\nRefund Amount: $${data.refund_amount}`);
+        window.location.reload();
+    })
+    .catch(err => {
+        alert(err.message);
+    });
+}
+</script>
+{% endblock %}

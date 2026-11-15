@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Gate Staff Scanner - EventSphere{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">
+                        <i class="bi bi-shield-check me-1"></i> Staff Gate Scanner
+                    </span>
+                    <span class="text-muted small">Arbitrated by <code>TicketAgent</code></span>
+                </div>
+
+                <h3 class="fw-bold mb-3">Entrance Check-In</h3>
+
+                <!-- Event Filter Selector -->
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-semibold text-muted">Current Gate Event (Optional filter)</label>
+                    <select id="scanner-event-id" class="form-select form-select-sm">
+                        <option value="">-- Verify against any event --</option>
+                        {% for ev in events %}
+                        <option value="{{ ev.id }}">{{ ev.title }} ({{ ev.venue.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Camera QR Scanner Viewport -->
+                <div id="reader" class="mb-3"></div>
+
+                <div class="d-flex gap-2 justify-content-center mb-4">
+                    <button id="btnStartScan" onclick="startScanner()" class="btn btn-primary btn-sm rounded-pill px-4">
+                        <i class="bi bi-camera me-1"></i> Start Camera
+                    </button>
+                    <button id="btnStopScan" onclick="stopScanner()" class="btn btn-outline-secondary btn-sm rounded-pill px-4 d-none">
+                        <i class="bi bi-camera-video-off me-1"></i> Stop Camera
+                    </button>
+                </div>
+
+                <!-- Manual Ticket Code Fallback -->
+                <div class="border-top pt-3 text-start">
+                    <label class="form-label small fw-semibold text-muted">Manual Code Entry (Fallback)</label>
+                    <div class="input-group">
+                        <input type="text" id="manual-ticket-code" class="form-control" placeholder="e.g. TK-XXXXXXXXXXXX" style="text-transform: uppercase;">
+                        <button onclick="submitManualCode()" class="btn btn-dark">Verify Code</button>
+                    </div>
+                </div>
+
+                <!-- Result Card -->
+                <div id="scanResultCard" class="mt-4 p-3 rounded-4 d-none text-start">
+                    <div class="d-flex align-items-center mb-2">
+                        <span id="resultIcon" class="display-5 me-3"></span>
+                        <div>
+                            <h5 id="resultHeading" class="fw-bold mb-0"></h5>
+                            <span id="resultBadge" class="badge"></span>
+                        </div>
+                    </div>
+                    <p id="resultReason" class="small mb-2"></p>
+                    <div class="bg-white bg-opacity-75 p-2 rounded small font-monospace" id="resultDetails"></div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- HTML5 QR Code Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script>
+let html5QrCode = null;
+let isProcessing = false;
+
+function startScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText, decodedResult) => {
+            if (!isProcessing) {
+                isProcessing = true;
+                processTicketCode(decodedText);
+                setTimeout(() => { isProcessing = false; }, 2500);
+            }
+        },
+        (errorMessage) => {
+            // parse error, ignore while searching
+        }
+    ).then(() => {
+        document.getElementById("btnStartScan").classList.add("d-none");
+        document.getElementById("btnStopScan").classList.remove("d-none");
+    }).catch(err => {
+        alert("Camera access error: " + err);
+    });
+}
+
+function stopScanner() {
+    if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+            document.getElementById("btnStartScan").classList.remove("d-none");
+            document.getElementById("btnStopScan").classList.add("d-none");
+        });
+    }
+}
+
+function submitManualCode() {
+    const code = document.getElementById("manual-ticket-code").value.trim();
+    if (!code) {
+        alert("Please enter a ticket code.");
+        return;
+    }
+    processTicketCode(code);
+}
+
+function processTicketCode(code) {
+    const eventIdVal = document.getElementById("scanner-event-id").value;
+    const eventId = eventIdVal ? parseInt(eventIdVal) : null;
+
+    fetch("/api/staff/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ticket_code: code,
+            event_id: eventId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        displayScanResult(data);
+    })
+    .catch(err => {
+        alert("Scan processing failed: " + err);
+    });
+}
+
+function displayScanResult(data) {
+    const card = document.getElementById("scanResultCard");
+    const icon = document.getElementById("resultIcon");
+    const heading = document.getElementById("resultHeading");
+    const badge = document.getElementById("resultBadge");
+    const reason = document.getElementById("resultReason");
+    const details = document.getElementById("resultDetails");
+
+    card.classList.remove("d-none", "bg-success-subtle", "bg-danger-subtle", "bg-warning-subtle", "border-success", "border-danger", "border-warning");
+
+    if (data.admit) {
+        // ADMITTED
+        card.classList.add("bg-success-subtle", "border", "border-success");
+        icon.innerHTML = `<i class="bi bi-check-circle-fill text-success"></i>`;
+        heading.textContent = "ADMISSION GRANTED";
+        heading.className = "fw-bold mb-0 text-success";
+        badge.className = "badge bg-success";
+        badge.textContent = "VALID TICKET";
+    } else if (data.status === "FRAUD_ALERT") {
+        // FRAUD / SUSPICIOUS REPEATED SCANS
+        card.classList.add("bg-danger-subtle", "border", "border-danger", "border-3");
+        icon.innerHTML = `<i class="bi bi-shield-fill-x text-danger"></i>`;
+        heading.textContent = "FRAUD ALERT: SUSPICIOUS REPEATED SCAN";
+        heading.className = "fw-bold mb-0 text-danger";
+        badge.className = "badge bg-danger";
+        badge.textContent = `SCANNED ${data.scan_count} TIMES`;
+    } else {
+        // REJECTED
+        card.classList.add("bg-danger-subtle", "border", "border-danger");
+        icon.innerHTML = `<i class="bi bi-x-circle-fill text-danger"></i>`;
+        heading.textContent = "ADMISSION REJECTED";
+        heading.className = "fw-bold mb-0 text-danger";
+        badge.className = "badge bg-danger";
+        badge.textContent = data.status;
+    }
+
+    reason.textContent = data.reason;
+    details.innerHTML = `
+        <div><strong>Code:</strong> ${data.ticket_code}</div>
+        <div><strong>Event:</strong> ${data.event_title || 'N/A'}</div>
+        <div><strong>Attendee:</strong> ${data.attendee_name || 'N/A'}</div>
+        <div><strong>Category:</strong> ${data.ticket_category || 'N/A'}</div>
+    `;
+
+    // Visual scroll into view
+    card.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}

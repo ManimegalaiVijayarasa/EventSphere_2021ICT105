@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: eventsphere-platform
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python scripts/seed_data.py"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///./eventsphere.db

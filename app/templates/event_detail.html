@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.title }} - EventSphere{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row g-4">
+        
+        <!-- Left: Event Information -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <img src="{{ event.image_url or 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80' }}" 
+                     class="img-fluid" alt="{{ event.title }}" style="max-height: 340px; width: 100%; object-fit: cover;">
+                <div class="card-body p-4">
+                    <span class="badge bg-primary mb-2">{{ event.category }}</span>
+                    <h2 class="fw-bold">{{ event.title }}</h2>
+                    
+                    <div class="d-flex flex-wrap gap-4 text-muted small my-3">
+                        <div>
+                            <i class="bi bi-calendar3 text-primary me-1"></i>
+                            <strong>Starts:</strong> {{ event.start_time.strftime('%a, %d %b %Y at %I:%M %p') }}
+                        </div>
+                        <div>
+                            <i class="bi bi-clock-history text-primary me-1"></i>
+                            <strong>Ends:</strong> {{ event.end_time.strftime('%I:%M %p') }}
+                        </div>
+                        <div>
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                            <strong>Venue:</strong> {{ event.venue.name }} (Cap: {{ event.venue.capacity }})
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mt-4">About this Event</h5>
+                    <p class="text-secondary">{{ event.description or 'No further details provided.' }}</p>
+
+                    <div class="alert alert-info d-flex align-items-center mt-4">
+                        <i class="bi bi-robot fs-3 me-3 text-primary"></i>
+                        <div class="small">
+                            <strong>Multi-Agent Verification:</strong> Booking concurrency and ticket issuance are arbitrated by <code>BookingAgent</code> and <code>TicketAgent</code> to ensure no overselling occurs.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Tickets & Booking Box -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 sticky-top" style="top: 80px;">
+                <h4 class="fw-bold mb-3">Select Tickets</h4>
+
+                <!-- Active Cart Hold Notice (if applicable) -->
+                <div id="cart-hold-alert" class="alert alert-warning d-none">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small fw-bold"><i class="bi bi-clock-history me-1"></i> Cart Hold Active!</span>
+                        <span id="hold-timer" class="badge bg-danger">10:00</span>
+                    </div>
+                    <div class="small mt-1 text-muted">Complete booking before timer expires to guarantee your seats.</div>
+                </div>
+
+                <div class="d-flex flex-column gap-3">
+                    {% for cat in event.ticket_categories %}
+                    <div class="card border {% if cat.available_quantity > 0 %}border-primary-subtle{% else %}border-secondary-subtle bg-light{% endif %} rounded-3 p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0">{{ cat.name }}</h6>
+                                <span class="text-muted small">
+                                    {% if cat.available_quantity > 0 %}
+                                    <span class="text-success fw-bold">{{ cat.available_quantity }}</span> left of {{ cat.total_quantity }}
+                                    {% else %}
+                                    <span class="badge bg-secondary">Sold Out</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <span class="fs-5 fw-bold text-dark">${{ "%.2f"|format(cat.price) }}</span>
+                        </div>
+
+                        {% if cat.available_quantity > 0 %}
+                        <div class="row g-2 align-items-center mt-1">
+                            <div class="col-4">
+                                <select id="qty-{{ cat.id }}" class="form-select form-select-sm">
+                                    {% for q in range(1, (cat.available_quantity + 1) if (cat.available_quantity < 6) else 7) %}
+                                    <option value="{{ q }}">{{ q }} ticket{% if q > 1 %}s{% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-8">
+                                <div class="d-flex gap-1">
+                                    <button onclick="holdCart({{ event.id }}, {{ cat.id }})" class="btn btn-outline-primary btn-sm flex-fill" title="Hold in cart for 10 minutes">
+                                        <i class="bi bi-hourglass-top"></i> Hold
+                                    </button>
+                                    <button onclick="instantBook({{ event.id }}, {{ cat.id }})" class="btn btn-primary btn-sm flex-fill">
+                                        Book Now
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Sold out: Join Waitlist -->
+                        <div class="mt-2">
+                            <button onclick="joinWaitlist({{ event.id }}, {{ cat.id }})" class="btn btn-warning btn-sm w-100 text-dark fw-semibold">
+                                <i class="bi bi-person-lines-fill me-1"></i> Join Waitlist
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4 pt-3 border-top text-muted small">
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="bi bi-shield-check text-success me-2"></i>
+                        <span>Simulated payments only &bull; Instant QR ticket delivery</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-arrow-counterclockwise text-primary me-2"></i>
+                        <span>Cancellation refund policy: 100% (>48h), 50% (24-48h), 0% (&lt;24h)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Booking Confirmation Modal -->
+<div class="modal fade" id="bookingSuccessModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center px-4 pb-4">
+                <div class="display-3 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
+                <h4 class="fw-bold">Booking Confirmed!</h4>
+                <p class="text-muted small">Your tickets have been issued by <code>TicketAgent</code>.</p>
+                <div class="bg-light p-3 rounded-3 my-3 text-start small">
+                    <div><strong>Reference:</strong> <span id="modal-ref" class="font-monospace text-primary"></span></div>
+                    <div><strong>Total Paid:</strong> $<span id="modal-total"></span> (Simulated)</div>
+                    <div><strong>Tickets Issued:</strong> <span id="modal-qty"></span></div>
+                </div>
+                <a href="/my-bookings" class="btn btn-primary rounded-pill w-100">View Digital Tickets with QR</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentCartHoldId = null;
+
+function holdCart(eventId, categoryId) {
+    const qty = parseInt(document.getElementById(`qty-${categoryId}`).value);
+    fetch("/api/bookings/hold", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            event_id: eventId,
+            ticket_category_id: categoryId,
+            quantity: qty
+        })
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Cart hold failed");
+        return data;
+    })
+    .then(data => {
+        currentCartHoldId = data.cart_hold_id;
+        document.getElementById("cart-hold-alert").classList.remove("d-none");
+        startTimer(data.expires_at);
+        alert(`BookingAgent held ${data.quantity} tickets for ${data.duration_minutes} minutes!`);
+    })
+    .catch(err => {
+        alert(err.message);
+    });
+}
+
+function instantBook(eventId, categoryId) {
+    const qty = parseInt(document.getElementById(`qty-${categoryId}`).value);
+    fetch("/api/bookings/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            event_id: eventId,
+            ticket_category_id: categoryId,
+            quantity: qty,
+            cart_hold_id: currentCartHoldId
+        })
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Booking failed");
+        return data;
+    })
+    .then(data => {
+        document.getElementById("modal-ref").textContent = data.payment_reference;
+        document.getElementById("modal-total").textContent = data.total_amount;
+        document.getElementById("modal-qty").textContent = data.quantity;
+        const modal = new bootstrap.Modal(document.getElementById("bookingSuccessModal"));
+        modal.show();
+    })
+    .catch(err => {
+        alert(err.message);
+    });
+}
+
+function joinWaitlist(eventId, categoryId) {
+    fetch("/api/waitlist/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            event_id: eventId,
+            ticket_category_id: categoryId,
+            requested_quantity: 1
+        })
+    })
+    .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to join waitlist");
+        return data;
+    })
+    .then(data => {
+        alert(`WaitlistAgent: ${data.message}`);
+        window.location.href = "/waitlist";
+    })
+    .catch(err => {
+        alert(err.message);
+    });
+}
+
+function startTimer(expiresAtIso) {
+    const target = new Date(expiresAtIso).getTime();
+    const timerEl = document.getElementById("hold-timer");
+    const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const diff = target - now;
+        if (diff <= 0) {
+            clearInterval(interval);
+            timerEl.textContent = "00:00 (Expired)";
+            currentCartHoldId = null;
+            return;
+        }
+        const m = Math.floor(diff / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        timerEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    }, 1000);
+}
+</script>
+{% endblock %}

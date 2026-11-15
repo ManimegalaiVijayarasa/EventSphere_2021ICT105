@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Organiser Dashboard - EventSphere{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">Organiser Dashboard</h2>
+            <p class="text-muted small mb-0">Overview of ticket sales, live check-ins, and multi-agent coordination.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/admin/events" class="btn btn-primary btn-sm rounded-pill"><i class="bi bi-plus-lg me-1"></i> New Event</a>
+            <a href="/admin/agent-logs" class="btn btn-outline-dark btn-sm rounded-pill"><i class="bi bi-diagram-3 me-1"></i> Agent Logs</a>
+        </div>
+    </div>
+
+    <!-- Stat Metric Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <div class="text-muted small">Total Events</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{ total_events }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <div class="text-muted small">Campus Venues</div>
+                <div class="fs-3 fw-bold text-primary mt-1">{{ total_venues }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <div class="text-muted small">Total Bookings</div>
+                <div class="fs-3 fw-bold text-success mt-1">{{ total_bookings }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <div class="text-muted small">Simulated Revenue</div>
+                <div class="fs-3 fw-bold text-info mt-1">${{ "%.2f"|format(total_revenue) }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <div class="text-muted small">Check-Ins / Admitted</div>
+                <div class="fs-3 fw-bold text-warning mt-1">{{ total_admitted }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row (Part C feature) -->
+    <div class="row g-4 mb-4">
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-3">Ticket Sales per Event</h5>
+                <canvas id="salesChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-3">Attendance & Check-in Ratio</h5>
+                <canvas id="checkinsChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Performance Table -->
+    <div class="card border-0 shadow-sm rounded-4 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Events Breakdown & Sales</h5>
+            <a href="/admin/events" class="btn btn-outline-primary btn-sm rounded-pill">Manage All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Event</th>
+                        <th>Venue & Date</th>
+                        <th>Status</th>
+                        <th>Sold / Cap</th>
+                        <th>Revenue</th>
+                        <th>Check-Ins</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in event_stats %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.event.title }}</strong><br>
+                            <span class="badge bg-light text-dark border">{{ item.event.category }}</span>
+                        </td>
+                        <td class="small">
+                            {{ item.event.venue.name }}<br>
+                            <span class="text-muted">{{ item.event.start_time.strftime('%b %d, %I:%M %p') }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if item.event.status == 'published' %}bg-success{% elif item.event.status == 'draft' %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
+                                {{ item.event.status.upper() }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ item.tickets_sold }}</span> / {{ item.capacity }}
+                            <div class="progress mt-1" style="height: 4px;">
+                                {% set pct = (item.tickets_sold / (item.capacity if item.capacity > 0 else 1) * 100)|round %}
+                                <div class="progress-bar bg-primary" style="width: {{ pct }}%"></div>
+                            </div>
+                        </td>
+                        <td class="fw-bold text-success">${{ "%.2f"|format(item.revenue) }}</td>
+                        <td>
+                            <span class="badge bg-info-subtle text-info fw-bold">{{ item.checkins }} admitted</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+fetch("/api/admin/dashboard-stats")
+    .then(res => res.json())
+    .then(data => {
+        // Sales Bar Chart
+        new Chart(document.getElementById("salesChart"), {
+            type: "bar",
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: "Tickets Sold",
+                    data: data.sales,
+                    backgroundColor: "rgba(79, 70, 229, 0.8)",
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Check-ins vs Sales Chart
+        new Chart(document.getElementById("checkinsChart"), {
+            type: "doughnut",
+            data: {
+                labels: ["Checked-In (Admitted)", "Remaining Sold"],
+                datasets: [{
+                    data: [
+                        data.checkins.reduce((a, b) => a + b, 0),
+                        Math.max(0, data.sales.reduce((a, b) => a + b, 0) - data.checkins.reduce((a, b) => a + b, 0))
+                    ],
+                    backgroundColor: ["#10b981", "#cbd5e1"]
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    });
+</script>
+{% endblock %}
