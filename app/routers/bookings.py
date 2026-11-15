@@ -45,13 +45,16 @@ def my_bookings_page(
                 "qr_uri": qr_uri
             })
 
-    return templates.TemplateResponse("my_bookings.html", {
-        "request": request,
-        "user": user,
-        "bookings": bookings,
-        "tickets": ticket_data,
-        "now": datetime.utcnow()
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="my_bookings.html",
+        context={
+            "user": user,
+            "bookings": bookings,
+            "tickets": ticket_data,
+            "now": datetime.utcnow()
+        }
+    )
 
 @router.get("/waitlist", response_class=HTMLResponse)
 def waitlist_page(
@@ -63,12 +66,15 @@ def waitlist_page(
         WaitlistEntry.user_id == user.id
     ).order_by(WaitlistEntry.created_at.desc()).all()
 
-    return templates.TemplateResponse("waitlist.html", {
-        "request": request,
-        "user": user,
-        "entries": entries,
-        "now": datetime.utcnow()
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="waitlist.html",
+        context={
+            "user": user,
+            "entries": entries,
+            "now": datetime.utcnow()
+        }
+    )
 
 # --- REST API Endpoints with FIPA-ACL Agent Message Passing ---
 

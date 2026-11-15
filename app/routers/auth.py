@@ -32,12 +32,15 @@ def login_page(request: Request, user: User = Depends(get_current_user_optional)
 
     session_id = request.cookies.get("session_id", "guest-session")
     csrf_token = generate_csrf_token(session_id)
-    response = templates.TemplateResponse("login.html", {
-        "request": request,
-        "user": None,
-        "csrf_token": csrf_token,
-        "error": None
-    })
+    response = templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "user": None,
+            "csrf_token": csrf_token,
+            "error": None
+        }
+    )
     if "session_id" not in request.cookies:
         response.set_cookie("session_id", session_id, httponly=True)
     return response
@@ -53,13 +56,17 @@ def login_form(
     user = db.query(User).filter(User.email == email.strip().lower()).first()
     if not user or not verify_password(password, user.hashed_password):
         session_id = request.cookies.get("session_id", "guest-session")
-        return templates.TemplateResponse("login.html", {
-            "request": request,
-            "user": None,
-            "csrf_token": generate_csrf_token(session_id),
-            "error": "Invalid email or password.",
-            "email": email
-        }, status_code=400)
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "user": None,
+                "csrf_token": generate_csrf_token(session_id),
+                "error": "Invalid email or password.",
+                "email": email
+            },
+            status_code=400
+        )
 
     token = create_access_token(data={"sub": user.email, "role": user.role, "id": user.id})
 
@@ -86,12 +93,15 @@ def register_page(request: Request, user: User = Depends(get_current_user_option
         return RedirectResponse(url="/", status_code=303)
     session_id = request.cookies.get("session_id", "guest-session")
     csrf_token = generate_csrf_token(session_id)
-    return templates.TemplateResponse("register.html", {
-        "request": request,
-        "user": None,
-        "csrf_token": csrf_token,
-        "error": None
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="register.html",
+        context={
+            "user": None,
+            "csrf_token": csrf_token,
+            "error": None
+        }
+    )
 
 @router.post("/register", response_class=HTMLResponse)
 def register_form(
@@ -105,14 +115,18 @@ def register_form(
     existing = db.query(User).filter(User.email == clean_email).first()
     if existing:
         session_id = request.cookies.get("session_id", "guest-session")
-        return templates.TemplateResponse("register.html", {
-            "request": request,
-            "user": None,
-            "csrf_token": generate_csrf_token(session_id),
-            "error": "An account with this email already exists.",
-            "full_name": full_name,
-            "email": email
-        }, status_code=400)
+        return templates.TemplateResponse(
+            request=request,
+            name="register.html",
+            context={
+                "user": None,
+                "csrf_token": generate_csrf_token(session_id),
+                "error": "An account with this email already exists.",
+                "full_name": full_name,
+                "email": email
+            },
+            status_code=400
+        )
 
     new_user = User(
         email=clean_email,

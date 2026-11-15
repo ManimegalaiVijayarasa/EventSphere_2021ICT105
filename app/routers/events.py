@@ -49,16 +49,19 @@ def index_page(
     categories_list = [c[0] for c in categories if c[0]]
     venues = db.query(Venue).all()
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "user": user,
-        "events": events,
-        "categories": categories_list,
-        "venues": venues,
-        "selected_category": category,
-        "search_query": q,
-        "selected_venue": venue_id
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "user": user,
+            "events": events,
+            "categories": categories_list,
+            "venues": venues,
+            "selected_category": category,
+            "search_query": q,
+            "selected_venue": venue_id
+        }
+    )
 
 @router.get("/events/{event_id}", response_class=HTMLResponse)
 def event_detail_page(
@@ -71,11 +74,14 @@ def event_detail_page(
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    return templates.TemplateResponse("event_detail.html", {
-        "request": request,
-        "user": user,
-        "event": event
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="event_detail.html",
+        context={
+            "user": user,
+            "event": event
+        }
+    )
 
 # --- REST API Endpoints ---
 @router.get("/api/events", response_model=List[EventOut])

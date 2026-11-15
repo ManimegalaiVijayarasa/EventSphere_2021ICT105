@@ -68,17 +68,20 @@ def admin_dashboard_page(
             "capacity": ev.venue.capacity if ev.venue else 0
         })
 
-    return templates.TemplateResponse("admin_dashboard.html", {
-        "request": request,
-        "user": user,
-        "total_events": total_events,
-        "total_venues": total_venues,
-        "total_bookings": total_bookings,
-        "total_revenue": round(total_revenue, 2),
-        "total_admitted": total_admitted,
-        "pending_hires": pending_hires,
-        "event_stats": event_stats
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_dashboard.html",
+        context={
+            "user": user,
+            "total_events": total_events,
+            "total_venues": total_venues,
+            "total_bookings": total_bookings,
+            "total_revenue": round(total_revenue, 2),
+            "total_admitted": total_admitted,
+            "pending_hires": pending_hires,
+            "event_stats": event_stats
+        }
+    )
 
 @router.get("/admin/events", response_class=HTMLResponse)
 def admin_events_page(
@@ -88,12 +91,15 @@ def admin_events_page(
 ):
     events = db.query(Event).order_by(Event.start_time.desc()).all()
     venues = db.query(Venue).all()
-    return templates.TemplateResponse("admin_events.html", {
-        "request": request,
-        "user": user,
-        "events": events,
-        "venues": venues
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_events.html",
+        context={
+            "user": user,
+            "events": events,
+            "venues": venues
+        }
+    )
 
 @router.get("/admin/venues", response_class=HTMLResponse)
 def admin_venues_page(
@@ -102,11 +108,14 @@ def admin_venues_page(
     db: Session = Depends(get_db)
 ):
     venues = db.query(Venue).all()
-    return templates.TemplateResponse("admin_venues.html", {
-        "request": request,
-        "user": user,
-        "venues": venues
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_venues.html",
+        context={
+            "user": user,
+            "venues": venues
+        }
+    )
 
 @router.get("/admin/hires", response_class=HTMLResponse)
 def admin_hires_page(
@@ -115,11 +124,14 @@ def admin_hires_page(
     db: Session = Depends(get_db)
 ):
     hires = db.query(VenueHire).order_by(VenueHire.created_at.desc()).all()
-    return templates.TemplateResponse("admin_hire_requests.html", {
-        "request": request,
-        "user": user,
-        "hires": hires
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_hire_requests.html",
+        context={
+            "user": user,
+            "hires": hires
+        }
+    )
 
 @router.get("/admin/agent-logs", response_class=HTMLResponse)
 def admin_agent_logs_page(
@@ -141,15 +153,18 @@ def admin_agent_logs_page(
     logs = query.order_by(MessageLog.created_at.desc()).limit(150).all()
     distinct_convs = db.query(MessageLog.conversation_id).distinct().limit(25).all()
 
-    return templates.TemplateResponse("admin_agent_logs.html", {
-        "request": request,
-        "user": user,
-        "logs": logs,
-        "conversations": [c[0] for c in distinct_convs],
-        "filter_conv": conversation_id,
-        "filter_sender": sender,
-        "filter_receiver": receiver
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_agent_logs.html",
+        context={
+            "user": user,
+            "logs": logs,
+            "conversations": [c[0] for c in distinct_convs],
+            "filter_conv": conversation_id,
+            "filter_sender": sender,
+            "filter_receiver": receiver
+        }
+    )
 
 # --- REST API Endpoints ---
 @router.post("/api/admin/venues", response_model=VenueOut)

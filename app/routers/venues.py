@@ -29,13 +29,16 @@ def venues_page(
             VenueHire.user_id == user.id
         ).order_by(VenueHire.created_at.desc()).all()
 
-    return templates.TemplateResponse("venues.html", {
-        "request": request,
-        "user": user,
-        "venues": venues,
-        "user_hires": user_hires,
-        "now": datetime.utcnow()
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="venues.html",
+        context={
+            "user": user,
+            "venues": venues,
+            "user_hires": user_hires,
+            "now": datetime.utcnow()
+        }
+    )
 
 @router.get("/hire-status/{hire_id}", response_class=HTMLResponse)
 def hire_status_page(
@@ -51,11 +54,14 @@ def hire_status_page(
     if not hire:
         raise HTTPException(status_code=404, detail="Hire request not found.")
 
-    return templates.TemplateResponse("hire_status.html", {
-        "request": request,
-        "user": user,
-        "hire": hire
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="hire_status.html",
+        context={
+            "user": user,
+            "hire": hire
+        }
+    )
 
 # --- REST API Endpoints ---
 @router.get("/api/venues", response_model=List[VenueOut])

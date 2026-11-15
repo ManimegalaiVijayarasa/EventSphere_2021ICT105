@@ -92,8 +92,12 @@ templates = Jinja2Templates(directory="app/templates")
 async def not_found_handler(request: Request, exc):
     if request.url.path.startswith("/api/"):
         return {"error": "Not Found", "detail": str(exc.detail if hasattr(exc, "detail") else exc)}
-    return templates.TemplateResponse("base.html", {
-        "request": request,
-        "user": None,
-        "content_block": "<div class='container text-center py-5'><h2>404 - Page Not Found</h2><p>The page you requested does not exist.</p><a href='/' class='btn btn-primary'>Return Home</a></div>"
-    }, status_code=404)
+    return templates.TemplateResponse(
+        request=request,
+        name="base.html",
+        context={
+            "user": None,
+            "content_block": "<div class='container text-center py-5'><h2>404 - Page Not Found</h2><p>The page you requested does not exist.</p><a href='/' class='btn btn-primary'>Return Home</a></div>"
+        },
+        status_code=404
+    )

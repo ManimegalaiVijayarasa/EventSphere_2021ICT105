@@ -22,11 +22,14 @@ def scanner_page(
     db: Session = Depends(get_db)
 ):
     active_events = db.query(Event).filter(Event.status == "published").all()
-    return templates.TemplateResponse("staff_scanner.html", {
-        "request": request,
-        "user": user,
-        "events": active_events
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="staff_scanner.html",
+        context={
+            "user": user,
+            "events": active_events
+        }
+    )
 
 @router.post("/api/staff/scan", response_model=TicketScanResponse)
 def scan_ticket_api(
