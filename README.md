@@ -8,7 +8,7 @@
 
 ## 🚀 Live Public Deployment & Demo Accounts
 
-* **Live Cloud URL:** `https://eventsphere-platform.onrender.com` (or your deployed Render URL)
+* **Live Cloud URL:** `https://c19an48p-fastapi-eventsphere-2021ict1.apps-6.websson.cloud/`
 * **API Documentation (Swagger):** `/docs` and `/redoc`
 
 ### Demo Accounts
