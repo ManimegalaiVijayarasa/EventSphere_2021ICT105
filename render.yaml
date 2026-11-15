@@ -3,8 +3,7 @@ databases:
   - name: eventsphere-db
     databaseName: eventsphere
     user: eventsphere_user
-    plan: basic-256mb
-
+    plan: free
 services:
   - type: web
     name: eventsphere-platform
