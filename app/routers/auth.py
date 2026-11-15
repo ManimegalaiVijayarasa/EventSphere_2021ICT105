@@ -161,8 +161,8 @@ def api_register(payload: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == clean_email).first():
         raise HTTPException(status_code=400, detail="Email already registered.")
 
-    # Restrict role assignment from API to attendee unless specified internally
-    role = payload.role if payload.role in ["attendee", "staff", "admin"] else "attendee"
+    # Public API registration is restricted to attendees
+    role = "attendee"
     user = User(
         email=clean_email,
         full_name=payload.full_name.strip(),

@@ -1,15 +1,28 @@
+
+databases:
+  - name: eventsphere-db
+    databaseName: eventsphere
+    user: eventsphere_user
+    plan: basic-256mb
+
 services:
   - type: web
     name: eventsphere-platform
-    env: python
+    runtime: python
     region: oregon
     plan: free
-    buildCommand: "pip install -r requirements.txt && python scripts/seed_data.py"
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python scripts/seed_data.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///./eventsphere.db
+        fromDatabase:
+          name: eventsphere-db
+          property: connectionString
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: STAFF_PASSWORD
+        sync: false

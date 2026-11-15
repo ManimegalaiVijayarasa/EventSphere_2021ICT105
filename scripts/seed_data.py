@@ -24,14 +24,12 @@ def seed_database():
             {
                 "email": "admin@eventsphere.edu",
                 "full_name": "Dr. Sarah Jenkins (Organiser)",
-                "password": "Admin@12345",
-                "role": "admin"
+                "password": os.getenv("ADMIN_PASSWORD", "Admin@12345"),                "role": "admin"
             },
             {
                 "email": "staff@eventsphere.edu",
                 "full_name": "Marcus Vance (Gate Staff)",
-                "password": "Staff@12345",
-                "role": "staff"
+                "password": os.getenv("STAFF_PASSWORD", "Staff@12345"),                "role": "staff"
             },
             {
                 "email": "attendee@eventsphere.edu",
@@ -259,11 +257,6 @@ def seed_database():
                 agent_bus.get_agent(agent_name).set_belief(db, key, val)
 
         print("\nSeed data completed successfully!")
-        print("Demo Accounts:")
-        print("  1. Admin / Organiser : admin@eventsphere.edu  | Password: Admin@12345")
-        print("  2. Gate Staff        : staff@eventsphere.edu  | Password: Staff@12345")
-        print("  3. Student Attendee  : attendee@eventsphere.edu | Password: Attendee@12345")
-
     finally:
         db.close()
 

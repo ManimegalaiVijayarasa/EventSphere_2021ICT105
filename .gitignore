@@ -1,10 +1,29 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Databases
 *.db
 *.sqlite3
-.pytest_cache/
-.env
+
+# Python environments
 venv/
+.venv/
 env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE and OS
+.vscode/
+.idea/
 .DS_Store
